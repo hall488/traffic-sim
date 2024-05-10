@@ -1,6 +1,7 @@
 mod app;
 mod config;
 mod world;
+mod simulation;
 
 use crate::app::App;
 use winit::event_loop::{ControlFlow, EventLoop};
