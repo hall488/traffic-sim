@@ -2,6 +2,7 @@ mod app;
 mod config;
 mod world;
 mod simulation;
+mod vehicle;
 
 use crate::app::App;
 use winit::event_loop::{ControlFlow, EventLoop};

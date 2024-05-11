@@ -1,5 +1,6 @@
 use crate::config::{WIDTH, HEIGHT, BOX_SIZE};
 
+/// Representation of the application state. In this example, a box will bounce around the screen.
 pub struct World {
     box_x: i16,
     box_y: i16,
