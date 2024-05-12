@@ -1,6 +1,5 @@
 mod app;
 mod config;
-mod world;
 mod simulation;
 mod vehicle;
 
