@@ -1,8 +1,8 @@
 use winit::window::Window;
-use crate::config::{WIDTH, HEIGHT};
+use crate::config::{WIDTH, HEIGHT, DASH_LENGTH, GAP_LENGTH};
 use pixels::{Pixels, SurfaceTexture};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
-use crate::vehicle::Vehicle;
+use crate::vehicle::{Vehicle,Lane};
 use std::time::Duration;
 
 pub struct Simulation {
@@ -25,11 +25,12 @@ impl Simulation {
 
         let mut vehicles: Vec<Vehicle> = Vec::new();
 
-        let my_vehicle = Vehicle::new(50, 10, 10, 0.0, HEIGHT as f64 /2.0, 0.0);
-
+        let my_vehicle = Vehicle::new(50, 10, 10, 0.0, HEIGHT as f64 /2.0 + 12.5, 0.0, Lane::Left);
+        let my_vehicle_2 = Vehicle::new(50, 10, 10, 0.0, HEIGHT as f64 /2.0 + 37.5, 0.0, Lane::Right);
 
         // Append the vehicle to the vector
         vehicles.push(my_vehicle);
+        vehicles.push(my_vehicle_2);
 
         Self {
             pixels : pixels.expect("_"),
@@ -62,10 +63,30 @@ impl Simulation {
             let j = index / WIDTH as usize;
 
             if  i < WIDTH as usize / 2 + 50 &&
-            i > WIDTH as usize / 2 - 50 &&
+            i > WIDTH as usize / 2 - 50 ||
             j < HEIGHT as usize / 2 + 50 &&
             j > HEIGHT as usize / 2 - 50 {
-                color = &[0x00, 0x00, 0x00, 0x00];
+                color = &[0xa0, 0xa0, 0xa0, 0xff];
+            }
+
+            if !(i < WIDTH as usize / 2 + 50 &&
+            i > WIDTH as usize / 2 - 50 &&
+            j < HEIGHT as usize / 2 + 50 &&
+            j > HEIGHT as usize / 2 - 50 ) {
+
+                if (i < WIDTH as usize / 2 + 5 &&
+                i > WIDTH as usize / 2 - 5) ^
+                (j < HEIGHT as usize / 2 + 5 &&
+                j > HEIGHT as usize / 2 - 5) {
+                    color = &[0xff, 0xff, 0x00, 0xff];
+                } else if (i == WIDTH as usize / 2 - 25 || i == WIDTH as usize / 2 + 25) && // Positions for lane dividers
+                (j / (DASH_LENGTH + GAP_LENGTH) % 2 == 0) { // Dashed pattern
+                    color = &[0xff, 0xff, 0x00, 0xff]; // Yellow dashes
+                } else if (j == HEIGHT as usize / 2 - 25 || j == HEIGHT as usize / 2 + 25) && // Positions for lane dividers
+                (i / (DASH_LENGTH + GAP_LENGTH) % 2 == 0) { // Dashed pattern
+                    color = &[0xff, 0xff, 0x00, 0xff]; // Yellow dashes
+                }
+
             }
 
             pixel.copy_from_slice(color);

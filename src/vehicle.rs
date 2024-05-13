@@ -9,26 +9,31 @@ pub struct Vehicle {
     y: f64,
     direction: f64,
     state: State,
-
+    lane: Lane,
+    turn: TurnDirection,
 }
 
 #[derive(Debug)]
 pub enum State {
     Driving,
-    Straight,
     Turning,
     Stop,
 }
 
 pub enum TurnDirection {
     Left,
+    Straight,
     Right,
 }
 
+pub enum Lane {
+    Left,
+    Right,
+}
 
 impl Vehicle {
 
-    pub fn new(speed: u32, width: u32, height: u32, x: f64, y: f64, direction: f64) -> Self {
+    pub fn new(speed: u32, width: u32, height: u32, x: f64, y: f64, direction: f64, lane: Lane) -> Self {
         Self {
             speed,
             width,
@@ -37,12 +42,14 @@ impl Vehicle {
             y,
             direction,
             state: State::Driving,
+            lane,
+            turn: TurnDirection::Right,
         }
     }
 
     pub fn update(&mut self, dt: Duration ) {
         //vroom vroom
-        //println!("state {:?}", self.state);
+        println!("state {:?}", self.state);
         println!("x {0} y {1} d {2} dt {3}", self.x, self.y, self.direction, dt.as_secs_f64());
         match self.state {
             State::Driving => {
@@ -60,7 +67,8 @@ impl Vehicle {
 
             },
             State::Turning => {
-                self.apply_turn(50.0, TurnDirection::Right, dt.as_secs_f64());
+                let radius = self.get_turn_radius();
+                self.apply_turn(radius, TurnDirection::Right, dt.as_secs_f64());
                 if  self.x >= WIDTH as f64 / 2.0 + 50.0 ||
                 self.x <= WIDTH as f64 / 2.0 - 50.0 ||
                 self.y >= HEIGHT as f64 / 2.0 + 50.0 ||
@@ -69,19 +77,36 @@ impl Vehicle {
                     self.state = State::Driving;
                 }
             },
-            State::Straight => {
+        }
+    }
 
-            },
+    pub fn get_turn_radius(&self) -> f64 {
+        return match self.lane {
+            Lane::Right => {
+                match self.turn {
+                    TurnDirection::Right => 12.5,
+                    TurnDirection::Left => 87.5,
+                    TurnDirection::Straight => 0.0,
+                }
+            }
+            Lane::Left => {
+                match self.turn {
+                    TurnDirection::Right => 37.5,
+                    TurnDirection::Left => 62.5,
+                    TurnDirection::Straight => 0.0,
+                }
+            }
         }
     }
 
     pub fn apply_turn(&mut self, radius: f64, turn_direction: TurnDirection, delta_time: f64) {
         let angular_velocity = self.speed as f64 / radius; // Angular velocity = speed / radius
         let angular_change = angular_velocity * delta_time; // Change in angle is angular velocity * time
-        println!("{angular_change}");
+
         match turn_direction {
             TurnDirection::Left => self.direction -= angular_change,
             TurnDirection::Right => self.direction += angular_change,
+            TurnDirection::Straight => (),
         }
 
         // Normalize direction to stay within the range [0, 2*pi)
