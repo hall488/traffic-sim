@@ -5,9 +5,9 @@ pub struct Vehicle {
     speed: u32,
     width: u32,
     height: u32,
-    x: f32,
-    y: f32,
-    direction: f32,
+    x: f64,
+    y: f64,
+    direction: f64,
     state: State,
 
 }
@@ -28,7 +28,7 @@ pub enum TurnDirection {
 
 impl Vehicle {
 
-    pub fn new(speed: u32, width: u32, height: u32, x: f32, y: f32, direction: f32) -> Self {
+    pub fn new(speed: u32, width: u32, height: u32, x: f64, y: f64, direction: f64) -> Self {
         Self {
             speed,
             width,
@@ -42,16 +42,17 @@ impl Vehicle {
 
     pub fn update(&mut self, dt: Duration ) {
         //vroom vroom
-        println!("state {:?}", self.state);
+        //println!("state {:?}", self.state);
+        println!("x {0} y {1} d {2} dt {3}", self.x, self.y, self.direction, dt.as_secs_f64());
         match self.state {
             State::Driving => {
-                self.x += self.speed as f32 * dt.as_secs_f32() * self.direction.cos();
-                self.y += self.speed as f32 * dt.as_secs_f32() * self.direction.sin();
+                self.x += self.speed as f64 * dt.as_secs_f64() * self.direction.cos();
+                self.y += self.speed as f64 * dt.as_secs_f64() * self.direction.sin();
 
-                if  self.x < WIDTH as f32 / 2.0 + 50.0 &&
-                self.x > WIDTH as f32 / 2.0 - 50.0 &&
-                self.y < HEIGHT as f32 / 2.0 + 50.0 &&
-                self.y > HEIGHT as f32 / 2.0 - 50.0 {
+                if  self.x < WIDTH as f64 / 2.0 + 50.0 &&
+                self.x > WIDTH as f64 / 2.0 - 50.0 &&
+                self.y < HEIGHT as f64 / 2.0 + 50.0 &&
+                self.y > HEIGHT as f64 / 2.0 - 50.0 {
                     self.state = State::Turning;
                 }
             },
@@ -59,11 +60,12 @@ impl Vehicle {
 
             },
             State::Turning => {
-                self.apply_turn(50.0, TurnDirection::Right, dt.as_secs_f32());
-                if  self.x > WIDTH as f32 / 2.0 + 50.0 ||
-                self.x < WIDTH as f32 / 2.0 - 50.0 ||
-                self.y > HEIGHT as f32 / 2.0 + 50.0 ||
-                self.y < HEIGHT as f32 / 2.0 - 50.0 {
+                self.apply_turn(50.0, TurnDirection::Right, dt.as_secs_f64());
+                if  self.x >= WIDTH as f64 / 2.0 + 50.0 ||
+                self.x <= WIDTH as f64 / 2.0 - 50.0 ||
+                self.y >= HEIGHT as f64 / 2.0 + 50.0 ||
+                self.y <= HEIGHT as f64 / 2.0 - 50.0 {
+                    self.quantize_direction();
                     self.state = State::Driving;
                 }
             },
@@ -73,29 +75,37 @@ impl Vehicle {
         }
     }
 
-    pub fn apply_turn(&mut self, radius: f32, turn_direction: TurnDirection, delta_time: f32) {
-        let angular_velocity = self.speed as f32 / radius; // Angular velocity = speed / radius
+    pub fn apply_turn(&mut self, radius: f64, turn_direction: TurnDirection, delta_time: f64) {
+        let angular_velocity = self.speed as f64 / radius; // Angular velocity = speed / radius
         let angular_change = angular_velocity * delta_time; // Change in angle is angular velocity * time
-
+        println!("{angular_change}");
         match turn_direction {
             TurnDirection::Left => self.direction -= angular_change,
             TurnDirection::Right => self.direction += angular_change,
         }
 
         // Normalize direction to stay within the range [0, 2*pi)
-        self.direction = (self.direction + 2.0 * std::f32::consts::PI) % (2.0 * std::f32::consts::PI);
+        self.direction = (self.direction + 2.0 * std::f64::consts::PI) % (2.0 * std::f64::consts::PI);
 
         // Update the vehicle's position based on the new direction
-        self.x += self.speed as f32 * delta_time * self.direction.cos();
-        self.y += self.speed as f32 * delta_time * self.direction.sin();
+        self.x += self.speed as f64 * delta_time * self.direction.cos();
+        self.y += self.speed as f64 * delta_time * self.direction.sin();
     }
 
+    fn quantize_direction(&mut self) {
+        let pi = std::f64::consts::PI;
+        let half_pi = pi / 2.0;
+        self.direction = (self.direction / half_pi).round() * half_pi;
+        self.direction = self.direction % (2.0 * pi);
+    }
+
+
     pub fn check_bounds(&self) -> bool {
-        if self.x > WIDTH as f32 || self.x < 0.0 || self.y > HEIGHT as f32 || self.y < 0.0 {
+        if self.x > WIDTH as f64 || self.x < 0.0 || self.y > HEIGHT as f64 || self.y < 0.0 {
 
             return true;
         }
-        println!("x {0} y {1}", self.x, self.y);
+
         return false;
     }
 

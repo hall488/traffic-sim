@@ -25,7 +25,7 @@ impl Simulation {
 
         let mut vehicles: Vec<Vehicle> = Vec::new();
 
-        let my_vehicle = Vehicle::new(10, 10, 10, WIDTH as f32 /2.0, HEIGHT as f32 /2.0, 0.0);
+        let my_vehicle = Vehicle::new(50, 10, 10, 0.0, HEIGHT as f64 /2.0, 0.0);
 
 
         // Append the vehicle to the vector
