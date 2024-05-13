@@ -3,6 +3,7 @@ use crate::config::{WIDTH, HEIGHT};
 use pixels::{Pixels, SurfaceTexture};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use crate::vehicle::Vehicle;
+use std::time::Duration;
 
 pub struct Simulation {
     pixels: Pixels,
@@ -24,7 +25,8 @@ impl Simulation {
 
         let mut vehicles: Vec<Vehicle> = Vec::new();
 
-        let my_vehicle = Vehicle::new(1,10,10 , window_size.width/2, window_size.height/2, 1.1);
+        let my_vehicle = Vehicle::new(10, 10, 10, WIDTH as f32 /2.0, HEIGHT as f32 /2.0, 0.0);
+
 
         // Append the vehicle to the vector
         vehicles.push(my_vehicle);
@@ -39,11 +41,13 @@ impl Simulation {
     }
 
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, dt: Duration ) {
 
         for vehicle in &mut self.vehicles {
-            vehicle.update();
+            vehicle.update(dt);
         }
+
+        self.vehicles.retain(|vehicle| !vehicle.check_bounds())
 
     }
 
@@ -51,8 +55,19 @@ impl Simulation {
 
         let frame = self.pixels.frame_mut();
 
-        for pixel in frame.chunks_exact_mut(4) {
-            let color =  &[0x48, 0xb2, 0xe8, 0xff];
+        for (index, pixel) in frame.chunks_exact_mut(4).enumerate() {
+            let mut color =  &[0x48, 0xb2, 0xe8, 0xff];
+
+            let i = index % WIDTH as usize; // Current pixel's x-coordinate
+            let j = index / WIDTH as usize;
+
+            if  i < WIDTH as usize / 2 + 50 &&
+            i > WIDTH as usize / 2 - 50 &&
+            j < HEIGHT as usize / 2 + 50 &&
+            j > HEIGHT as usize / 2 - 50 {
+                color = &[0x00, 0x00, 0x00, 0x00];
+            }
+
             pixel.copy_from_slice(color);
         }
 

@@ -4,11 +4,13 @@ use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
 use winit::window::{Window, WindowId};
 use crate::simulation::Simulation;
+use std::time::{Duration, Instant};
 
 #[derive(Default)]
 pub struct App {
     window: Option<Window>,
     simulation: Option<Simulation>,
+    last_redraw: Option<Instant>,
 }
 
 impl ApplicationHandler for App {
@@ -23,6 +25,7 @@ impl ApplicationHandler for App {
 
         self.simulation = Some(simulation);
         self.window = Some(window);
+        self.last_redraw = Some(Instant::now());
    }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _id: WindowId, event: WindowEvent) {
@@ -33,8 +36,12 @@ impl ApplicationHandler for App {
             },
             WindowEvent::RedrawRequested => {
 
-                if let Some(simulation) = self.simulation.as_mut() {
-                    simulation.update();
+                if let (Some(simulation), Some(last_redraw)) = (&mut self.simulation, &mut self.last_redraw) {
+                    let now = Instant::now();
+                    let dt = now.duration_since(*last_redraw);
+                    *last_redraw = now;
+
+                    simulation.update(dt);
                     simulation.draw(event_loop);
                 }
 
