@@ -3,8 +3,9 @@ use winit::window::Window;
 use crate::{collision::rectangles_intersect, config::{DASH_LENGTH, GAP_LENGTH, HEIGHT, WIDTH}, vehicle::TurnDirection};
 use pixels::{Pixels, SurfaceTexture};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
-use crate::vehicle::{Vehicle,Lane};
+use crate::vehicle::Vehicle;
 use std::time::{Duration, Instant};
+use crate::stop_light::StopLight;
 
 pub struct Simulation {
     pixels: Pixels,
@@ -14,8 +15,9 @@ pub struct Simulation {
     background: Vec<u8>,
     time_since_last_spawn: Instant,
     id_counter: usize,
+    stop_lights: [StopLight; 4],
+    //light_manager: LightManager,
 }
-
 
 impl Simulation {
 
@@ -29,17 +31,10 @@ impl Simulation {
 
         let vehicles: Vec<Vehicle> = Vec::new();
 
-        //let my_vehicle = Vehicle::new(50, 10, 10, 0.0, HEIGHT as f64 /2.0 + 12.5, 0.0, Lane::Left);
-        //let my_vehicle_2 = Vehicle::new(50, 10, 10, 0.0, HEIGHT as f64 /2.0 + 37.5, 0.0, Lane::Right);
-
-        // Append the vehicle to the vector
-        //vehicles.push(my_vehicle);
-        //vehicles.push(my_vehicle_2);
-
-
         let frame = pixels.frame_mut();
         let background = load_background_frame(frame);
 
+        let stop_lights = [StopLight::new(0), StopLight::new(1), StopLight::new(2), StopLight::new(3)];
 
         Self {
             pixels,
@@ -49,6 +44,7 @@ impl Simulation {
             background,
             time_since_last_spawn: Instant::now(),
             id_counter: 0,
+            stop_lights,
         }
 
     }
@@ -61,11 +57,23 @@ impl Simulation {
         }
 
         self.vehicles.retain(|vehicle| !vehicle.check_bounds());
+        self.spawn_on_timer(0.5);
+        self.handle_vehicle_collisions();
+        self.handle_vehicle_stops();
+
+        //stoplight coooooooooode
+        //stoplight is a line that is stop or go
+        //line is a rectangle that appears and disappears
+        //
+        //stop light manager says when each stop light can switch
+    }
+
+    pub fn spawn_on_timer(&mut self, time: f32) {
 
         let now = Instant::now();
         let spawn_timer = now.duration_since(self.time_since_last_spawn);
 
-        if spawn_timer.as_secs_f32() > 0.5 {
+        if spawn_timer.as_secs_f32() > time {
             let mut rng = rand::thread_rng();
             let entrance = rng.gen_range(0..8);
             let direction = match rng.gen_range(0..3) {
@@ -81,9 +89,11 @@ impl Simulation {
 
             self.vehicles.push(vehicle);
             self.time_since_last_spawn = now;
-
         }
 
+    }
+
+    fn handle_vehicle_collisions(&mut self) {
         for i in 0..self.vehicles.len() {
             let (before, rest) = self.vehicles.split_at_mut(i);
             let (v1, after) = rest.split_at_mut(1);
@@ -93,13 +103,20 @@ impl Simulation {
                 if rectangles_intersect(&v1.vision, &v2.bounds) {
                     v1.speed = 0;
                     break; // Stop checking further once an intersection is found
-                } else {
-                    v1.speed = 50;
                 }
             }
         }
+    }
 
-
+    fn handle_vehicle_stops(&mut self) {
+        for vehicle in &mut self.vehicles {
+            for stop_light in &self.stop_lights {
+                if rectangles_intersect(&vehicle.vision, &stop_light.line) {
+                    vehicle.speed = 0;
+                    break;
+                }
+            }
+        }
     }
 
     pub fn draw(&mut self, event_loop: &ActiveEventLoop) {
@@ -112,16 +129,16 @@ impl Simulation {
             vehicle.draw(frame, self.window_width, self.window_height);
         }
 
+        for stop_light in &self.stop_lights {
+            stop_light.draw(frame, self.window_width, self.window_height);
+        }
+
         if let Err(err) = self.pixels.render() {
             println!("Error during rendering: {:?}", err);
             event_loop.set_control_flow(ControlFlow::Wait);
             return;
         }
-
-
     }
-
-
 }
 
 fn load_background_frame(frame: &mut [u8]) -> Vec<u8>{
@@ -155,7 +172,6 @@ fn load_background_frame(frame: &mut [u8]) -> Vec<u8>{
             (i / (DASH_LENGTH + GAP_LENGTH) % 2 == 0) { // Dashed pattern
                 color = &[0xff, 0xff, 0x00, 0xff]; // Yellow dashes
             }
-
         }
 
         pixel.copy_from_slice(color);
