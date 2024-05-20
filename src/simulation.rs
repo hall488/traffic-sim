@@ -1,6 +1,6 @@
 use rand::Rng;
 use winit::window::Window;
-use crate::{config::{DASH_LENGTH, GAP_LENGTH, HEIGHT, WIDTH}, vehicle::TurnDirection};
+use crate::{collision::rectangles_intersect, config::{DASH_LENGTH, GAP_LENGTH, HEIGHT, WIDTH}, vehicle::TurnDirection};
 use pixels::{Pixels, SurfaceTexture};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use crate::vehicle::{Vehicle,Lane};
@@ -13,6 +13,7 @@ pub struct Simulation {
     window_height: u32,
     background: Vec<u8>,
     time_since_last_spawn: Instant,
+    id_counter: usize,
 }
 
 
@@ -39,6 +40,7 @@ impl Simulation {
         let frame = pixels.frame_mut();
         let background = load_background_frame(frame);
 
+
         Self {
             pixels,
             vehicles,
@@ -46,6 +48,7 @@ impl Simulation {
             window_height: window_size.height,
             background,
             time_since_last_spawn: Instant::now(),
+            id_counter: 0,
         }
 
     }
@@ -72,10 +75,31 @@ impl Simulation {
                 _ => unreachable!(),
             };
 
-            let vehicle = Vehicle::new(50, 10, 10, entrance, direction);
+            let vehicle = Vehicle::new(self.id_counter, 50, 10, 10, entrance, direction);
+
+            self.id_counter += 1;
+
             self.vehicles.push(vehicle);
             self.time_since_last_spawn = now;
+
         }
+
+        for i in 0..self.vehicles.len() {
+            let (before, rest) = self.vehicles.split_at_mut(i);
+            let (v1, after) = rest.split_at_mut(1);
+            let v1 = &mut v1[0];
+
+            for v2 in before.iter().chain(after.iter()) {
+                if rectangles_intersect(&v1.vision, &v2.bounds) {
+                    v1.speed = 0;
+                    break; // Stop checking further once an intersection is found
+                } else {
+                    v1.speed = 50;
+                }
+            }
+        }
+
+
     }
 
     pub fn draw(&mut self, event_loop: &ActiveEventLoop) {
