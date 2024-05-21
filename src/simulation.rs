@@ -61,6 +61,9 @@ impl Simulation {
         self.handle_vehicle_collisions();
         self.handle_vehicle_stops();
 
+        for stop_light in &mut self.stop_lights {
+            stop_light.update();
+        }
         //stoplight coooooooooode
         //stoplight is a line that is stop or go
         //line is a rectangle that appears and disappears
@@ -111,7 +114,7 @@ impl Simulation {
     fn handle_vehicle_stops(&mut self) {
         for vehicle in &mut self.vehicles {
             for stop_light in &self.stop_lights {
-                if rectangles_intersect(&vehicle.vision, &stop_light.line) {
+                if rectangles_intersect(&vehicle.vision, &stop_light.line) && !stop_light.active {
                     vehicle.speed = 0;
                     break;
                 }
