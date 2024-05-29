@@ -6,6 +6,7 @@ mod collision;
 mod grid;
 mod drawing_util;
 mod stop_light;
+mod intersection_manager;
 
 use crate::app::App;
 use winit::event_loop::{ControlFlow, EventLoop};

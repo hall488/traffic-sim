@@ -1,11 +1,12 @@
 use rand::Rng;
 use winit::window::Window;
-use crate::{collision::rectangles_intersect, config::{DASH_LENGTH, GAP_LENGTH, HEIGHT, WIDTH}, vehicle::TurnDirection};
+use crate::{collision::rectangles_intersect, config::{DASH_LENGTH, GAP_LENGTH, HEIGHT, WIDTH}, intersection_manager, vehicle::TurnDirection};
 use pixels::{Pixels, SurfaceTexture};
 use winit::event_loop::{ActiveEventLoop, ControlFlow};
 use crate::vehicle::Vehicle;
 use std::time::{Duration, Instant};
 use crate::stop_light::StopLight;
+use crate::intersection_manager::IntersectionManager;
 
 pub struct Simulation {
     pixels: Pixels,
@@ -16,7 +17,8 @@ pub struct Simulation {
     time_since_last_spawn: Instant,
     id_counter: usize,
     stop_lights: [StopLight; 4],
-    //light_manager: LightManager,
+    intersection_manager: IntersectionManager ,
+    release_queue: [Vec<Vehicle>; 8],
 }
 
 impl Simulation {
@@ -36,6 +38,8 @@ impl Simulation {
 
         let stop_lights = [StopLight::new(0), StopLight::new(1), StopLight::new(2), StopLight::new(3)];
 
+        let intersection_manager = IntersectionManager::new();
+
         Self {
             pixels,
             vehicles,
@@ -45,6 +49,9 @@ impl Simulation {
             time_since_last_spawn: Instant::now(),
             id_counter: 0,
             stop_lights,
+            intersection_manager,
+            release_queue: [Vec::new(), Vec::new(), Vec::new(), Vec::new(),
+                            Vec::new(), Vec::new(), Vec::new(), Vec::new()]
         }
 
     }
@@ -52,14 +59,57 @@ impl Simulation {
 
     pub fn update(&mut self, dt: Duration ) {
 
+        for queue in &mut self.release_queue {
+            if !queue.is_empty() {
+                // Take the first element from the queue
+                let v1 = queue.swap_remove(0);
+                let mut passed = true;
+
+                // Check for intersections
+                for v2 in &self.vehicles {
+                    if rectangles_intersect(&v1.bounds, &v2.bounds) {
+                        passed = false;
+                        break; // Exit the loop early if an intersection is found
+                    }
+                }
+
+                // Move the vehicle into self.vehicles if the condition is met
+                if passed {
+                    self.vehicles.push(v1);
+                } else {
+                    // If not moved, put it back in the queue
+                    queue.push(v1);
+                }
+            }
+        }
+
+
         for vehicle in &mut self.vehicles {
             vehicle.update(dt);
         }
 
-        self.vehicles.retain(|vehicle| !vehicle.check_bounds());
-        self.spawn_on_timer(0.5);
+        self.vehicles.retain(|vehicle| {
+            if !vehicle.check_bounds() {
+                return true
+            } else {
+                self.intersection_manager.intersection_volume[(vehicle.entrance/2) as usize] -= 1;
+                return false
+            }
+        });
+        self.spawn_on_timer(0.1);
         self.handle_vehicle_collisions();
         self.handle_vehicle_stops();
+
+        if let Some((max_index, &max_value)) = self.intersection_manager.intersection_volume.iter().enumerate().max_by_key(|&(_, &val)| val) {
+            self.stop_lights[max_index].queued = true;
+            // Perform a different action for all other indices
+            for (index, &value) in self.intersection_manager.intersection_volume.iter().enumerate() {
+                if index == max_index {
+                    continue;
+                }
+                self.stop_lights[index].active = false;
+            }
+        }
 
         for stop_light in &mut self.stop_lights {
             stop_light.update();
@@ -79,18 +129,12 @@ impl Simulation {
         if spawn_timer.as_secs_f32() > time {
             let mut rng = rand::thread_rng();
             let entrance = rng.gen_range(0..8);
-            let direction = match rng.gen_range(0..3) {
-                0 => TurnDirection::Right,
-                1 => TurnDirection::Straight,
-                2 => TurnDirection::Left,
-                _ => unreachable!(),
-            };
-
-            let vehicle = Vehicle::new(self.id_counter, 50, 10, 10, entrance, direction);
+            let vehicle = Vehicle::new(self.id_counter, 50, 10, 10, entrance);
 
             self.id_counter += 1;
 
-            self.vehicles.push(vehicle);
+            self.intersection_manager.intersection_volume[(entrance/2) as usize] += 1;
+            self.release_queue[entrance as usize].push(vehicle);
             self.time_since_last_spawn = now;
         }
 
@@ -98,6 +142,7 @@ impl Simulation {
 
     fn handle_vehicle_collisions(&mut self) {
         for i in 0..self.vehicles.len() {
+
             let (before, rest) = self.vehicles.split_at_mut(i);
             let (v1, after) = rest.split_at_mut(1);
             let v1 = &mut v1[0];

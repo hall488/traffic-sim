@@ -2,6 +2,7 @@ use std::time::Duration;
 use crate::config::{WIDTH, HEIGHT};
 use crate::collision::{Rectangle, create_vehicle_vision};
 use crate::drawing_util::draw_rectangle;
+use rand::Rng;
 
 pub struct Vehicle {
     pub id: usize,
@@ -10,8 +11,9 @@ pub struct Vehicle {
     pub vision: Rectangle,
     pub direction: f64,
     state: State,
-    lane: Lane,
+    pub lane: Lane,
     turn: TurnDirection,
+    pub entrance: u32,
 }
 
 #[derive(Debug)]
@@ -27,6 +29,7 @@ pub enum TurnDirection {
     Right,
 }
 
+#[derive(PartialEq)]
 pub enum Lane {
     Left,
     Right,
@@ -34,7 +37,7 @@ pub enum Lane {
 
 impl Vehicle {
 
-    pub fn new(id: usize, speed: u32, width: u32, height: u32, entrance: u32, turn: TurnDirection) -> Self {
+    pub fn new(id: usize, speed: u32, width: u32, height: u32, entrance: u32) -> Self {
 
         let (x,y,direction,lane) = match entrance {
             0 => (0.0, HEIGHT as f64 /2.0 + 12.5, 0.0, Lane::Left),
@@ -48,6 +51,25 @@ impl Vehicle {
             _ => unreachable!(),
         };
 
+
+        let mut rng = rand::thread_rng();
+
+        let turn = match rng.gen_range(0..3) {
+            0 => if lane == Lane::Left {
+                TurnDirection::Left
+            } else {
+                TurnDirection:: Right
+            },
+            1 => if lane == Lane::Left {
+                TurnDirection::Left
+            } else {
+                TurnDirection:: Right
+            },
+            2 => TurnDirection::Straight,
+            _ => unreachable!(),
+        };
+
+
         let bounds = Rectangle::new(x,y,width,height,direction);
         let vision = create_vehicle_vision((x,y), direction, 20, 10);
 
@@ -60,6 +82,7 @@ impl Vehicle {
             state: State::Driving,
             lane,
             turn,
+            entrance,
         }
     }
 
@@ -99,7 +122,7 @@ impl Vehicle {
                 }
             },
         }
-        self.speed = 50;
+        self.speed = 500;
     }
 
 
