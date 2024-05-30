@@ -122,7 +122,7 @@ impl Vehicle {
                 }
             },
         }
-        self.speed = 500;
+        self.speed = 1000;
     }
 
 
